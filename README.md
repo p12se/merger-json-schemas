@@ -1,2 +1,2 @@
 # merger-json-schemas
-Merge json-schema file with $ref to one file
+Merge json-schema with $ref to one json-schema
