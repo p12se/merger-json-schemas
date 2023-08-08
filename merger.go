@@ -45,7 +45,7 @@ type HttpSchemaLoader struct {
 }
 
 func (h *HttpSchemaLoader) Load(ref string) (*JSONSchema, error) {
-	res, err := http.Get(path.Join(h.BaseURL, ref))
+	res, err := http.Get(h.BaseURL + "/" + ref)
 	if err != nil {
 		return nil, err
 	}
