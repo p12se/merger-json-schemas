@@ -16,24 +16,28 @@ jobs:
       fail-fast: false
 
     steps:
+    - name: Check out code
+      uses: actions/checkout@v2
+      
     - name: Set up Go ${{ matrix.go_version }}
       uses: actions/setup-go@v2
       with:
         go-version: ${{ matrix.go_version }}
-    
-    - name: Check out code
-      uses: actions/checkout@v2
-    
-    - name: Get dependencies (Go 1.16 and newer)
-      run: go get -v -t -d ./...
-      if: matrix.go_version == '1.16' || matrix.go_version == '1.17'
-    
-    - name: Get dependencies (Go 1.15 and older)
+
+    - name: Get dependencies
       run: go mod download
-      if: matrix.go_version != '1.16' && matrix.go_version != '1.17'
-    
+
     - name: Build
       run: go build -v ./...
     
-    - name: Test
-      run: go test -v ./...
+    - name: Test with Coverage
+      run: |
+        go test -v -coverpkg=./... -coverprofile=coverage.txt ./...
+        go tool cover -func=coverage.txt
+      
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v2
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        files: coverage.txt
+        fail_ci_if_error: true
