@@ -12,8 +12,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go_version: [ '1.15', '1.16', '1.17', '1.18', '1.19', '1.20', '1.21'  ]
-      fail-fast: false # Опция позволяет продолжать другие сборки даже если одна из них неудачна.
+        go_version: [ '1.16', '1.17', '1.18', '1.19', '1.20', '1.21'  ]
+      fail-fast: false
 
     steps:
     - name: Set up Go ${{ matrix.go_version }}
