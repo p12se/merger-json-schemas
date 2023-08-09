@@ -7,37 +7,36 @@ import (
 	"path"
 )
 
+type JSONSchema map[string]interface{}
+
 type SchemaLoader interface {
-	Load(ref string) (*JSONSchema, error)
+	Load(ref string) (JSONSchema, error)
 }
 
-type JSONSchema struct {
-	Title            string                 `json:"title"`
-	Type             string                 `json:"type"`
-	Format           string                 `json:"format,omitempty"`
-	Minimum          float64                `json:"minimum,omitempty"`
-	Maximum          float64                `json:"maximum,omitempty"`
-	MinItems         int                    `json:"minItems,omitempty"`
-	MaxItems         int                    `json:"maxItems,omitempty"`
-	Properties       map[string]interface{} `json:"properties"`
-	Definitions      map[string]JSONSchema  `json:"definitions"`
-	Ref              string                 `json:"$ref"`
-	Items            *JSONSchema            `json:"items"`
-	pathToDirSchemas string
+func MergeSchemas(target, source JSONSchema) {
+	for k, v := range source {
+		target[k] = v
+	}
 }
 
 type FileSchemaLoader struct {
 	BaseDir string
 }
 
-func (f *FileSchemaLoader) Load(ref string) (*JSONSchema, error) {
-	bytes, err := os.ReadFile(path.Join(f.BaseDir, ref))
+func (f *FileSchemaLoader) Load(ref string) (JSONSchema, error) {
+	fullPath := path.Join(f.BaseDir, ref)
+	data, err := os.ReadFile(fullPath)
 	if err != nil {
 		return nil, err
 	}
+
 	var schema JSONSchema
-	err = json.Unmarshal(bytes, &schema)
-	return &schema, err
+	err = json.Unmarshal(data, &schema)
+	if err != nil {
+		return nil, err
+	}
+
+	return schema, nil
 }
 
 type HttpSchemaLoader struct {
@@ -56,40 +55,26 @@ func (h *HttpSchemaLoader) Load(ref string) (*JSONSchema, error) {
 	return &schema, err
 }
 
-func getSchemaFromFile(filename string) (JSONSchema, error) {
-	b, err := os.ReadFile(filename)
-	if err != nil {
-		return JSONSchema{}, err
-	}
+func ResolveRefs(schema JSONSchema, loader SchemaLoader, currentPath string) error {
+	if ref, ok := schema["$ref"].(string); ok {
+		relativePath := path.Join(path.Dir(currentPath), ref)
 
-	var schema JSONSchema
-	err = json.Unmarshal(b, &schema)
-	if err != nil {
-		return JSONSchema{}, err
-	}
-
-	return schema, nil
-}
-
-func ResolveRefs(schema *JSONSchema, loader SchemaLoader) error {
-	if schema.Ref != "" {
-		refSchema, err := loader.Load(schema.Ref)
+		refSchema, err := loader.Load(relativePath)
 		if err != nil {
 			return err
 		}
-		if err := ResolveRefs(refSchema, loader); err != nil {
-			return err
-		}
-		*schema = *refSchema
+		MergeSchemas(schema, refSchema)
+		delete(schema, "$ref")
+
+		currentPath = relativePath
 	}
 
-	for _, prop := range schema.Properties {
-		if nestedSchema, ok := prop.(JSONSchema); ok {
-			if err := ResolveRefs(&nestedSchema, loader); err != nil {
+	for _, v := range schema {
+		if subSchema, ok := v.(map[string]interface{}); ok {
+			if err := ResolveRefs(subSchema, loader, currentPath); err != nil {
 				return err
 			}
 		}
 	}
-
 	return nil
 }
