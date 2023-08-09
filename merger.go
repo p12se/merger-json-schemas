@@ -5,6 +5,11 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"strings"
+)
+
+const (
+	Title = "title"
 )
 
 type JSONSchema map[string]interface{}
@@ -15,7 +20,9 @@ type SchemaLoader interface {
 
 func MergeSchemas(target, source JSONSchema) {
 	for k, v := range source {
-		target[k] = v
+		if !strings.EqualFold(k, Title) {
+			target[k] = v
+		}
 	}
 }
 
